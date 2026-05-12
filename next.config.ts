@@ -1,7 +1,21 @@
 import type { NextConfig } from "next";
+import path from 'node:path';
+import fs from 'node:fs';
+
+const turbopackRoot = path.resolve(process.cwd(), '../../');
+const workspaceRoot = path.resolve(turbopackRoot, 'automateLinux');
+if (!fs.existsSync(path.join(workspaceRoot, 'packages/feedback-lib/package.json'))) {
+  throw new Error(
+    `feedback-lib workspace guard: expected workspace at ${workspaceRoot} ` +
+    `(derived from Turbopack root ${turbopackRoot}). ` +
+    `Update the relative path or check the checkout layout.`,
+  );
+}
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  allowedDevOrigins: process.env.ALLOWED_DEV_ORIGINS?.split(',') ?? [],
+  turbopack: { root: turbopackRoot },
+  transpilePackages: ['@claudecontrol/feedback-lib', '@addnewfeature/feedback-lib-launcher'],
 };
 
 export default nextConfig;

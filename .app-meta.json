@@ -1,4 +1,4 @@
 {
-  "description": "Task management application",
-  "icon": "FlaskConical"
+  "description": "Kanban board task manager — drag-and-drop, priorities, labels, filters. Daemon DB-backed, multi-peer.",
+  "icon": "KanbanSquare"
 }

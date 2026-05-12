@@ -1,14 +1,16 @@
 {
-  "name": "tmp-create-taskmanager-1773512009",
+  "name": "taskManager",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@addnewfeature/feedback-lib-launcher": "file:../../automateLinux/packages/feedback-lib-launcher",
+    "@claudecontrol/feedback-lib": "file:../../automateLinux/packages/feedback-lib",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"

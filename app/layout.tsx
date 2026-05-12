@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import FeedbackChatMount from './FeedbackChatMount';
 
 export const metadata: Metadata = {
-  title: "taskManager",
-  description: "taskManager",
+  title: "Task Manager",
+  description: "Kanban board task manager",
 };
 
 export default function RootLayout({
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <FeedbackChatMount />
+      </body>
     </html>
   );
 }
