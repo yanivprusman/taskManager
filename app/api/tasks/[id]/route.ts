@@ -3,11 +3,16 @@ import { loadBoard, saveBoard } from '@/lib/tasks';
 
 export const dynamic = 'force-dynamic';
 
+function getBoardId(req: Request): string {
+  return new URL(req.url).searchParams.get('boardId') || 'default';
+}
+
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const boardId = getBoardId(req);
     const updates = await req.json();
-    const board = await loadBoard();
+    const board = await loadBoard(boardId);
 
     const idx = board.tasks.findIndex(t => t.id === id);
     if (idx === -1) {
@@ -21,17 +26,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       updatedAt: new Date().toISOString(),
     };
 
-    await saveBoard(board);
+    await saveBoard(boardId, board);
     return NextResponse.json(board.tasks[idx]);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const board = await loadBoard();
+    const boardId = getBoardId(req);
+    const board = await loadBoard(boardId);
 
     const idx = board.tasks.findIndex(t => t.id === id);
     if (idx === -1) {
@@ -39,7 +45,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     }
 
     board.tasks.splice(idx, 1);
-    await saveBoard(board);
+    await saveBoard(boardId, board);
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

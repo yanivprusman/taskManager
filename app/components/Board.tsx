@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { Task, Column, BoardData, Priority } from '@/lib/types';
+import type { Task, Column, BoardData, Priority, BoardMeta } from '@/lib/types';
 import { DEFAULT_COLUMNS, PRIORITY_CONFIG } from '@/lib/types';
 import TaskCard from './TaskCard';
 import TaskModal from './TaskModal';
 import FilterBar from './FilterBar';
+import BoardSwitcher from './BoardSwitcher';
 
 export interface Filters {
   search: string;
@@ -13,7 +14,11 @@ export interface Filters {
   labels: string[];
 }
 
+const ACTIVE_BOARD_KEY = 'taskManager:activeBoard';
+
 export default function Board() {
+  const [boards, setBoards] = useState<BoardMeta[]>([]);
+  const [activeBoardId, setActiveBoardId] = useState<string>('');
   const [board, setBoard] = useState<BoardData>({ tasks: [], columns: DEFAULT_COLUMNS });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,64 +30,141 @@ export default function Board() {
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchBoard = useCallback(async () => {
+  const fetchBoards = useCallback(async () => {
     try {
-      const res = await fetch('/api/tasks');
+      const res = await fetch('/api/boards');
+      if (!res.ok) throw new Error(await res.text());
+      const data: BoardMeta[] = await res.json();
+
+      if (data.length === 0) {
+        const createRes = await fetch('/api/boards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'My Board' }),
+        });
+        const newBoard: BoardMeta = await createRes.json();
+        setBoards([newBoard]);
+        return newBoard.id;
+      }
+
+      setBoards(data);
+      const stored = localStorage.getItem(ACTIVE_BOARD_KEY);
+      const valid = data.find(b => b.id === stored);
+      return valid ? valid.id : data[0].id;
+    } catch (err: any) {
+      setError(err.message);
+      return null;
+    }
+  }, []);
+
+  const fetchBoardData = useCallback(async (boardId: string) => {
+    try {
+      const res = await fetch(`/api/tasks?boardId=${boardId}`);
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setBoard(data);
       setError(null);
     } catch (err: any) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchBoard(); }, [fetchBoard]);
+  useEffect(() => {
+    (async () => {
+      const id = await fetchBoards();
+      if (id) {
+        setActiveBoardId(id);
+        localStorage.setItem(ACTIVE_BOARD_KEY, id);
+        await fetchBoardData(id);
+      }
+      setLoading(false);
+    })();
+  }, [fetchBoards, fetchBoardData]);
+
+  const switchBoard = useCallback(async (id: string) => {
+    setActiveBoardId(id);
+    localStorage.setItem(ACTIVE_BOARD_KEY, id);
+    setFilters({ search: '', priorities: [], labels: [] });
+    await fetchBoardData(id);
+  }, [fetchBoardData]);
+
+  const createBoard = useCallback(async (name: string) => {
+    const res = await fetch('/api/boards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) {
+      const newBoard: BoardMeta = await res.json();
+      setBoards(prev => [...prev, newBoard]);
+      await switchBoard(newBoard.id);
+    }
+  }, [switchBoard]);
+
+  const renameBoard = useCallback(async (id: string, name: string) => {
+    const res = await fetch(`/api/boards/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) {
+      setBoards(prev => prev.map(b => b.id === id ? { ...b, name } : b));
+    }
+  }, []);
+
+  const deleteBoard = useCallback(async (id: string) => {
+    const res = await fetch(`/api/boards/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      const remaining = boards.filter(b => b.id !== id);
+      setBoards(remaining);
+      if (activeBoardId === id && remaining.length > 0) {
+        await switchBoard(remaining[0].id);
+      }
+    }
+  }, [boards, activeBoardId, switchBoard]);
 
   const persistBoard = useCallback((updated: BoardData) => {
     setBoard(updated);
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
     saveTimeout.current = setTimeout(async () => {
       try {
-        await fetch('/api/tasks', {
+        await fetch(`/api/tasks?boardId=${activeBoardId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updated),
         });
       } catch {}
     }, 300);
-  }, []);
+  }, [activeBoardId]);
 
   const handleCreateTask = async (task: Partial<Task>) => {
-    const res = await fetch('/api/tasks', {
+    const res = await fetch(`/api/tasks?boardId=${activeBoardId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...task, columnId: targetColumn }),
     });
     if (res.ok) {
-      await fetchBoard();
+      await fetchBoardData(activeBoardId);
       setModalOpen(false);
     }
   };
 
   const handleUpdateTask = async (task: Partial<Task> & { id: string }) => {
-    const res = await fetch(`/api/tasks/${task.id}`, {
+    const res = await fetch(`/api/tasks/${task.id}?boardId=${activeBoardId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(task),
     });
     if (res.ok) {
-      await fetchBoard();
+      await fetchBoardData(activeBoardId);
       setModalOpen(false);
       setEditingTask(null);
     }
   };
 
   const handleDeleteTask = async (id: string) => {
-    await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-    await fetchBoard();
+    await fetch(`/api/tasks/${id}?boardId=${activeBoardId}`, { method: 'DELETE' });
+    await fetchBoardData(activeBoardId);
   };
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
@@ -107,7 +189,7 @@ export default function Board() {
     setDraggedTaskId(null);
     setDragOverColumn(null);
 
-    const updated = { ...board, tasks: board.tasks.map(t => t) };
+    const updated = { ...board, tasks: board.tasks.map(t => ({ ...t })) };
     const task = updated.tasks.find(t => t.id === taskId);
     if (!task || task.columnId === columnId) return;
 
@@ -143,7 +225,7 @@ export default function Board() {
       <div className="flex flex-col items-center justify-center h-screen gap-4">
         <div className="text-red-400 text-lg">Failed to load board</div>
         <div className="text-sm text-gray-500">{error}</div>
-        <button data-id="retry-load" onClick={fetchBoard}
+        <button data-id="retry-load" onClick={() => { setError(null); setLoading(true); fetchBoards().then(id => { if (id) { setActiveBoardId(id); fetchBoardData(id); } setLoading(false); }); }}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 cursor-pointer">
           Retry
         </button>
@@ -154,7 +236,14 @@ export default function Board() {
   return (
     <div className="h-screen flex flex-col bg-gray-950 text-gray-100">
       <header className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
-        <h1 className="text-xl font-semibold tracking-tight">Task Manager</h1>
+        <BoardSwitcher
+          boards={boards}
+          activeBoardId={activeBoardId}
+          onSwitch={switchBoard}
+          onCreate={createBoard}
+          onRename={renameBoard}
+          onDelete={deleteBoard}
+        />
         <button
           data-id="add-task-header"
           onClick={() => { setEditingTask(null); setTargetColumn('todo'); setModalOpen(true); }}

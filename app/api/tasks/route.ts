@@ -4,9 +4,13 @@ import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+function getBoardId(req: Request): string {
+  return new URL(req.url).searchParams.get('boardId') || 'default';
+}
+
+export async function GET(req: Request) {
   try {
-    const board = await loadBoard();
+    const board = await loadBoard(getBoardId(req));
     return NextResponse.json(board);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -15,8 +19,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const boardId = getBoardId(req);
     const body = await req.json();
-    const board = await loadBoard();
+    const board = await loadBoard(boardId);
 
     const columnTasks = board.tasks.filter(t => t.columnId === (body.columnId || 'todo'));
     const maxOrder = columnTasks.reduce((max, t) => Math.max(max, t.order), -1);
@@ -36,7 +41,7 @@ export async function POST(req: Request) {
 
     board.tasks.push(task);
     if (!board.columns.length) board.columns = DEFAULT_COLUMNS;
-    await saveBoard(board);
+    await saveBoard(boardId, board);
 
     return NextResponse.json(task, { status: 201 });
   } catch (err: any) {
@@ -46,9 +51,10 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
+    const boardId = getBoardId(req);
     const body = await req.json();
     const board = body as { tasks: Task[]; columns: typeof DEFAULT_COLUMNS };
-    await saveBoard(board);
+    await saveBoard(boardId, board);
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
