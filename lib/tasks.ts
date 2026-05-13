@@ -2,7 +2,7 @@ import { sendToDaemon } from './daemon-connection';
 import type { BoardData, BoardMeta } from './types';
 import { DEFAULT_COLUMNS } from './types';
 
-export type { Task, Column, BoardData, Priority, BoardMeta } from './types';
+export type { Task, Column, BoardData, Priority, BoardMeta, Subtask } from './types';
 export { DEFAULT_COLUMNS, PRIORITY_CONFIG } from './types';
 
 const BOARDS_INDEX_KEY = 'taskManager:boards';

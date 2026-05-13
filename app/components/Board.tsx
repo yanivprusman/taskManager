@@ -167,6 +167,16 @@ export default function Board() {
     await fetchBoardData(activeBoardId);
   };
 
+  const handleInlineUpdate = (taskId: string, updates: Partial<Task>) => {
+    const updated = {
+      ...board,
+      tasks: board.tasks.map(t =>
+        t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
+      ),
+    };
+    persistBoard(updated);
+  };
+
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData('text/plain', taskId);
     e.dataTransfer.effectAllowed = 'move';
@@ -298,6 +308,7 @@ export default function Board() {
                     onDragStart={(e) => handleDragStart(e, task.id)}
                     onEdit={() => { setEditingTask(task); setModalOpen(true); }}
                     onDelete={() => handleDeleteTask(task.id)}
+                    onUpdate={(updates) => handleInlineUpdate(task.id, updates)}
                   />
                 ))}
                 {columnTasks.length === 0 && (
