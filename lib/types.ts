@@ -18,6 +18,7 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   isDestructed?: boolean;
+  movedToCalendar?: boolean;
   subtasks?: Subtask[];
 }
 

@@ -90,14 +90,19 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
         onDragEnd={(e) => e.currentTarget.style.opacity = '1'}
         onContextMenu={handleContextMenu}
         className={`group relative bg-gray-800 rounded-lg p-3 cursor-grab active:cursor-grabbing border transition-all ${
-          task.isDestructed
-            ? 'border-amber-500/40 bg-gray-800/90'
-            : 'border-gray-700/50 hover:border-gray-600'
+          task.movedToCalendar
+            ? 'border-purple-500/40 bg-gray-800/80'
+            : task.isDestructed
+              ? 'border-amber-500/40 bg-gray-800/90'
+              : 'border-gray-700/50 hover:border-gray-600'
         } ${isDragging ? 'opacity-40 scale-95' : 'opacity-100'}`}
         data-id={`task-card-${task.id.slice(0, 8)}`}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            {task.movedToCalendar && (
+              <span className="text-purple-400 text-xs shrink-0" title="Moved to calendar">📅</span>
+            )}
             {task.isDestructed && (
               <span className="text-amber-400 text-xs shrink-0" title="Destructed to subtasks">⚡</span>
             )}
@@ -251,6 +256,16 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
               Destruct to subtasks
             </button>
           )}
+          <button
+            data-id={`ctx-calendar-${task.id.slice(0, 8)}`}
+            onClick={() => { closeMenu(); onUpdate({ movedToCalendar: !task.movedToCalendar }); }}
+            className={`w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700 cursor-pointer transition-colors flex items-center gap-2 ${
+              task.movedToCalendar ? 'hover:text-gray-100' : 'hover:text-purple-300'
+            }`}
+          >
+            <span className={task.movedToCalendar ? 'text-purple-400' : 'text-gray-500'}>📅</span>
+            {task.movedToCalendar ? 'Remove from calendar' : 'Moved to calendar'}
+          </button>
           <button
             data-id={`ctx-edit-${task.id.slice(0, 8)}`}
             onClick={() => { closeMenu(); onEdit(); }}

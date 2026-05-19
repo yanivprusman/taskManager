@@ -8,10 +8,11 @@ interface Props {
   filters: Filters;
   onChange: (f: Filters) => void;
   allLabels: string[];
+  calendarTaskCount: number;
 }
 
-export default function FilterBar({ filters, onChange, allLabels }: Props) {
-  const hasFilters = filters.search || filters.priorities.length > 0 || filters.labels.length > 0;
+export default function FilterBar({ filters, onChange, allLabels, calendarTaskCount }: Props) {
+  const hasFilters = filters.search || filters.priorities.length > 0 || filters.labels.length > 0 || filters.showCalendarTasks;
 
   const togglePriority = (p: Priority) => {
     const next = filters.priorities.includes(p)
@@ -77,10 +78,25 @@ export default function FilterBar({ filters, onChange, allLabels }: Props) {
         </div>
       )}
 
+      {calendarTaskCount > 0 && (
+        <button
+          data-id="toggle-calendar-tasks"
+          onClick={() => onChange({ ...filters, showCalendarTasks: !filters.showCalendarTasks })}
+          className={`text-[11px] px-2 py-1 rounded-md cursor-pointer transition-all flex items-center gap-1 ${
+            filters.showCalendarTasks
+              ? 'bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/40'
+              : 'bg-gray-800/50 text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          <span>📅</span>
+          Calendar ({calendarTaskCount})
+        </button>
+      )}
+
       {hasFilters && (
         <button
           data-id="clear-filters"
-          onClick={() => onChange({ search: '', priorities: [], labels: [] })}
+          onClick={() => onChange({ search: '', priorities: [], labels: [], showCalendarTasks: false })}
           className="text-[11px] text-gray-500 hover:text-gray-300 cursor-pointer transition-colors"
         >
           Clear filters

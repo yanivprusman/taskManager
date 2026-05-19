@@ -12,6 +12,7 @@ export interface Filters {
   search: string;
   priorities: Priority[];
   labels: string[];
+  showCalendarTasks: boolean;
 }
 
 const ACTIVE_BOARD_KEY = 'taskManager:activeBoard';
@@ -25,7 +26,7 @@ export default function Board() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [targetColumn, setTargetColumn] = useState<string>('todo');
-  const [filters, setFilters] = useState<Filters>({ search: '', priorities: [], labels: [] });
+  const [filters, setFilters] = useState<Filters>({ search: '', priorities: [], labels: [], showCalendarTasks: false });
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,7 +85,7 @@ export default function Board() {
   const switchBoard = useCallback(async (id: string) => {
     setActiveBoardId(id);
     localStorage.setItem(ACTIVE_BOARD_KEY, id);
-    setFilters({ search: '', priorities: [], labels: [] });
+    setFilters({ search: '', priorities: [], labels: [], showCalendarTasks: false });
     await fetchBoardData(id);
   }, [fetchBoardData]);
 
@@ -212,7 +213,10 @@ export default function Board() {
     persistBoard(updated);
   };
 
+  const calendarTaskCount = board.tasks.filter(t => t.movedToCalendar).length;
+
   const filteredTasks = board.tasks.filter(t => {
+    if (!filters.showCalendarTasks && t.movedToCalendar) return false;
     if (filters.search && !t.title.toLowerCase().includes(filters.search.toLowerCase()) &&
         !t.description.toLowerCase().includes(filters.search.toLowerCase())) return false;
     if (filters.priorities.length && !filters.priorities.includes(t.priority)) return false;
@@ -263,7 +267,7 @@ export default function Board() {
         </button>
       </header>
 
-      <FilterBar filters={filters} onChange={setFilters} allLabels={allLabels} />
+      <FilterBar filters={filters} onChange={setFilters} allLabels={allLabels} calendarTaskCount={calendarTaskCount} />
 
       <div className="flex-1 flex gap-4 p-4 overflow-x-auto">
         {board.columns.sort((a, b) => a.order - b.order).map(column => {
