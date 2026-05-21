@@ -113,6 +113,41 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
     setEditingSubtask(null);
   };
 
+  const renderSubtaskInput = (props: {
+    inputRef: React.RefObject<HTMLInputElement | null>;
+    dataId: string;
+    value: string;
+    onChange: (val: string) => void;
+    onSubmit: () => void;
+    onCancel: () => void;
+    confirmDataId: string;
+    confirmLabel: string;
+  }) => (
+    <div className="flex gap-1">
+      <input
+        ref={props.inputRef}
+        data-id={props.dataId}
+        value={props.value}
+        onChange={e => props.onChange(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter') props.onSubmit();
+          if (e.key === 'Escape') props.onCancel();
+        }}
+        onBlur={props.onSubmit}
+        placeholder="Subtask title..."
+        className="flex-1 min-w-0 bg-gray-700/50 border border-gray-600 rounded px-1.5 py-0.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-amber-500/50"
+      />
+      <button
+        data-id={props.confirmDataId}
+        onMouseDown={e => e.preventDefault()}
+        onClick={props.onSubmit}
+        className="text-amber-400 hover:text-amber-300 text-xs cursor-pointer px-1"
+      >
+        {props.confirmLabel}
+      </button>
+    </div>
+  );
+
   const subtasks = task.subtasks || [];
   const completedCount = subtasks.filter(s => s.completed).length;
 
@@ -198,55 +233,48 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
                   {s.completed && <span className="text-[8px]">✓</span>}
                 </button>
                 {editingSubtask?.id === s.id ? (
-                  <input
-                    ref={editSubtaskInputRef}
-                    data-id={`edit-subtask-input-${s.id.slice(0, 8)}`}
-                    value={editingSubtask.title}
-                    onChange={e => setEditingSubtask({ ...editingSubtask, title: e.target.value })}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') saveEditSubtask();
-                      if (e.key === 'Escape') setEditingSubtask(null);
-                    }}
-                    onBlur={saveEditSubtask}
-                    className="flex-1 min-w-0 bg-gray-700/50 border border-gray-600 rounded px-1.5 py-0.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500/50"
-                  />
+                  <div className="flex-1 min-w-0">
+                    {renderSubtaskInput({
+                      inputRef: editSubtaskInputRef,
+                      dataId: `edit-subtask-input-${s.id.slice(0, 8)}`,
+                      value: editingSubtask.title,
+                      onChange: val => setEditingSubtask({ ...editingSubtask, title: val }),
+                      onSubmit: saveEditSubtask,
+                      onCancel: () => setEditingSubtask(null),
+                      confirmDataId: `confirm-edit-subtask-${s.id.slice(0, 8)}`,
+                      confirmLabel: '✓',
+                    })}
+                  </div>
                 ) : (
-                  <span className={`text-xs flex-1 leading-tight ${
-                    s.completed ? 'text-gray-600 line-through' : 'text-gray-300'
-                  }`}>
-                    {s.title}
-                  </span>
+                  <>
+                    <span className={`text-xs flex-1 leading-tight ${
+                      s.completed ? 'text-gray-600 line-through' : 'text-gray-300'
+                    }`}>
+                      {s.title}
+                    </span>
+                    <button
+                      data-id={`delete-subtask-${s.id.slice(0, 8)}`}
+                      onClick={() => deleteSubtask(s.id)}
+                      className="text-gray-600 hover:text-red-400 text-[10px] opacity-0 group-hover/sub:opacity-100 cursor-pointer transition-opacity"
+                    >
+                      ×
+                    </button>
+                  </>
                 )}
-                <button
-                  data-id={`delete-subtask-${s.id.slice(0, 8)}`}
-                  onClick={() => deleteSubtask(s.id)}
-                  className="text-gray-600 hover:text-red-400 text-[10px] opacity-0 group-hover/sub:opacity-100 cursor-pointer transition-opacity"
-                >
-                  ×
-                </button>
               </div>
             ))}
             {addingSubtask ? (
-              <div className="flex gap-1 mt-1">
-                <input
-                  ref={subtaskInputRef}
-                  data-id={`subtask-input-${task.id.slice(0, 8)}`}
-                  value={subtaskTitle}
-                  onChange={e => setSubtaskTitle(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') { addSubtask(); }
-                    if (e.key === 'Escape') { setAddingSubtask(false); setSubtaskTitle(''); }
-                  }}
-                  placeholder="Subtask title..."
-                  className="flex-1 min-w-0 bg-gray-700/50 border border-gray-600 rounded px-1.5 py-0.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-amber-500/50"
-                />
-                <button
-                  data-id={`confirm-subtask-${task.id.slice(0, 8)}`}
-                  onClick={addSubtask}
-                  className="text-amber-400 hover:text-amber-300 text-xs cursor-pointer px-1"
-                >
-                  +
-                </button>
+              <div className="mt-1">
+                {renderSubtaskInput({
+                  inputRef: subtaskInputRef,
+                  dataId: `subtask-input-${task.id.slice(0, 8)}`,
+                  value: subtaskTitle,
+                  onChange: val => setSubtaskTitle(val),
+                  onSubmit: addSubtask,
+                  onCancel: () => { setAddingSubtask(false); setSubtaskTitle(''); },
+                  confirmDataId: `confirm-subtask-${task.id.slice(0, 8)}`,
+                  confirmLabel: '+',
+                })}
               </div>
             ) : (
               <button
