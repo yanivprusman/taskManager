@@ -18,20 +18,26 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
   const priority = PRIORITY_CONFIG[task.priority];
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [subtaskContextMenu, setSubtaskContextMenu] = useState<{ x: number; y: number; subtaskId: string } | null>(null);
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [subtaskTitle, setSubtaskTitle] = useState('');
+  const [editingSubtask, setEditingSubtask] = useState<{ id: string; title: string } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const subtaskMenuRef = useRef<HTMLDivElement>(null);
   const subtaskInputRef = useRef<HTMLInputElement>(null);
+  const editSubtaskInputRef = useRef<HTMLInputElement>(null);
 
   const closeMenu = useCallback(() => setContextMenu(null), []);
+  const closeSubtaskMenu = useCallback(() => setSubtaskContextMenu(null), []);
 
   useEffect(() => {
-    if (!contextMenu) return;
+    if (!contextMenu && !subtaskContextMenu) return;
     const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) closeMenu();
+      if (contextMenu && menuRef.current && !menuRef.current.contains(e.target as Node)) closeMenu();
+      if (subtaskContextMenu && subtaskMenuRef.current && !subtaskMenuRef.current.contains(e.target as Node)) closeSubtaskMenu();
     };
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeMenu();
+      if (e.key === 'Escape') { closeMenu(); closeSubtaskMenu(); }
     };
     document.addEventListener('mousedown', handleClick);
     document.addEventListener('keydown', handleKey);
@@ -39,11 +45,15 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
       document.removeEventListener('mousedown', handleClick);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [contextMenu, closeMenu]);
+  }, [contextMenu, subtaskContextMenu, closeMenu, closeSubtaskMenu]);
 
   useEffect(() => {
     if (addingSubtask) subtaskInputRef.current?.focus();
   }, [addingSubtask]);
+
+  useEffect(() => {
+    if (editingSubtask) editSubtaskInputRef.current?.focus();
+  }, [editingSubtask]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -77,6 +87,30 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
 
   const deleteSubtask = (subtaskId: string) => {
     onUpdate({ subtasks: (task.subtasks || []).filter(s => s.id !== subtaskId) });
+  };
+
+  const handleSubtaskContextMenu = (e: React.MouseEvent, subtaskId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSubtaskContextMenu({ x: e.clientX, y: e.clientY, subtaskId });
+  };
+
+  const startEditSubtask = (subtaskId: string) => {
+    closeSubtaskMenu();
+    const subtask = subtasks.find(s => s.id === subtaskId);
+    if (subtask) setEditingSubtask({ id: subtaskId, title: subtask.title });
+  };
+
+  const saveEditSubtask = () => {
+    if (!editingSubtask) return;
+    const trimmed = editingSubtask.title.trim();
+    if (trimmed) {
+      const updated = (task.subtasks || []).map(s =>
+        s.id === editingSubtask.id ? { ...s, title: trimmed } : s
+      );
+      onUpdate({ subtasks: updated });
+    }
+    setEditingSubtask(null);
   };
 
   const subtasks = task.subtasks || [];
@@ -146,7 +180,12 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
               </div>
             )}
             {subtasks.map(s => (
-              <div key={s.id} className="flex items-center gap-1.5 group/sub">
+              <div
+                key={s.id}
+                className="flex items-center gap-1.5 group/sub"
+                onContextMenu={(e) => handleSubtaskContextMenu(e, s.id)}
+                data-id={`subtask-row-${s.id.slice(0, 8)}`}
+              >
                 <button
                   data-id={`toggle-subtask-${s.id.slice(0, 8)}`}
                   onClick={() => toggleSubtask(s.id)}
@@ -158,11 +197,26 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
                 >
                   {s.completed && <span className="text-[8px]">✓</span>}
                 </button>
-                <span className={`text-xs flex-1 leading-tight ${
-                  s.completed ? 'text-gray-600 line-through' : 'text-gray-300'
-                }`}>
-                  {s.title}
-                </span>
+                {editingSubtask?.id === s.id ? (
+                  <input
+                    ref={editSubtaskInputRef}
+                    data-id={`edit-subtask-input-${s.id.slice(0, 8)}`}
+                    value={editingSubtask.title}
+                    onChange={e => setEditingSubtask({ ...editingSubtask, title: e.target.value })}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') saveEditSubtask();
+                      if (e.key === 'Escape') setEditingSubtask(null);
+                    }}
+                    onBlur={saveEditSubtask}
+                    className="flex-1 min-w-0 bg-gray-700/50 border border-gray-600 rounded px-1.5 py-0.5 text-xs text-gray-200 focus:outline-none focus:border-blue-500/50"
+                  />
+                ) : (
+                  <span className={`text-xs flex-1 leading-tight ${
+                    s.completed ? 'text-gray-600 line-through' : 'text-gray-300'
+                  }`}>
+                    {s.title}
+                  </span>
+                )}
                 <button
                   data-id={`delete-subtask-${s.id.slice(0, 8)}`}
                   onClick={() => deleteSubtask(s.id)}
@@ -281,6 +335,32 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
           >
             <span className="text-gray-500">🗑️</span>
             Delete task
+          </button>
+        </div>
+      )}
+
+      {subtaskContextMenu && (
+        <div
+          ref={subtaskMenuRef}
+          className="fixed z-[100] bg-gray-800 border border-gray-600 rounded-lg shadow-xl py-1 min-w-[180px]"
+          style={{ left: subtaskContextMenu.x, top: subtaskContextMenu.y }}
+          data-id={`subtask-context-menu-${subtaskContextMenu.subtaskId.slice(0, 8)}`}
+        >
+          <button
+            data-id={`ctx-edit-subtask-${subtaskContextMenu.subtaskId.slice(0, 8)}`}
+            onClick={() => startEditSubtask(subtaskContextMenu.subtaskId)}
+            className="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
+          >
+            <span className="text-gray-500">✏️</span>
+            Edit sub-task
+          </button>
+          <button
+            data-id={`ctx-delete-subtask-${subtaskContextMenu.subtaskId.slice(0, 8)}`}
+            onClick={() => { closeSubtaskMenu(); deleteSubtask(subtaskContextMenu.subtaskId); }}
+            className="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-red-400 cursor-pointer transition-colors flex items-center gap-2"
+          >
+            <span className="text-gray-500">🗑️</span>
+            Delete sub-task
           </button>
         </div>
       )}
