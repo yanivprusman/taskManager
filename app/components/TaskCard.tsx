@@ -11,12 +11,14 @@ interface Props {
   onDragStart: (e: React.DragEvent) => void;
   onEdit: () => void;
   onDelete: () => void;
+  onCopy: () => void;
   onUpdate: (updates: Partial<Task>) => void;
 }
 
-export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDelete, onUpdate }: Props) {
+export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDelete, onCopy, onUpdate }: Props) {
   const priority = PRIORITY_CONFIG[task.priority];
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+  const [collapsed, setCollapsed] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [subtaskContextMenu, setSubtaskContextMenu] = useState<{ x: number; y: number; subtaskId: string } | null>(null);
   const [addingSubtask, setAddingSubtask] = useState(false);
@@ -178,7 +180,8 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
         onDragStart={onDragStart}
         onDragEnd={(e) => e.currentTarget.style.opacity = '1'}
         onContextMenu={handleContextMenu}
-        className={`group relative bg-gray-800 rounded-lg p-3 cursor-grab active:cursor-grabbing border transition-all ${
+        onClick={() => setCollapsed(c => !c)}
+        className={`group relative bg-gray-800 rounded-lg p-3 cursor-pointer border transition-all ${
           task.movedToCalendar
             ? 'border-purple-500/40 bg-gray-800/80'
             : task.isDestructed
@@ -197,38 +200,44 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
             )}
             <h3
               data-id={`task-title-${task.id.slice(0, 8)}`}
-              onClick={onEdit}
-              className="text-sm font-medium text-gray-200 hover:text-white cursor-pointer flex-1 leading-snug truncate"
+              className="text-sm font-medium text-gray-200 flex-1 leading-snug truncate"
             >
               {task.title}
             </h3>
           </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <button
               data-id={`edit-task-${task.id.slice(0, 8)}`}
-              onClick={onEdit}
-              className="text-gray-500 hover:text-blue-400 text-xs cursor-pointer"
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              className="text-gray-600 hover:text-blue-400 text-[10px] cursor-pointer"
             >
-              edit
+              ✎
+            </button>
+            <button
+              data-id={`copy-task-${task.id.slice(0, 8)}`}
+              onClick={(e) => { e.stopPropagation(); onCopy(); }}
+              className="text-gray-600 hover:text-amber-400 text-[10px] cursor-pointer"
+            >
+              ⧉
             </button>
             <button
               data-id={`delete-task-${task.id.slice(0, 8)}`}
-              onClick={onDelete}
-              className="text-gray-500 hover:text-red-400 text-xs cursor-pointer"
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="text-gray-600 hover:text-red-400 text-[10px] cursor-pointer"
             >
-              del
+              ×
             </button>
           </div>
         </div>
 
-        {task.description && !task.isDestructed && (
+        {!collapsed && task.description && !task.isDestructed && (
           <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">
             {task.description}
           </p>
         )}
 
-        {task.isDestructed && (
-          <div className="mt-2 space-y-1" data-id={`subtasks-${task.id.slice(0, 8)}`}>
+        {!collapsed && task.isDestructed && (
+          <div className="mt-2 space-y-1" data-id={`subtasks-${task.id.slice(0, 8)}`} onClick={e => e.stopPropagation()}>
             {subtasks.length > 0 && (
               <div className="text-[10px] text-gray-500 mb-1">
                 {completedCount}/{subtasks.length} done
@@ -324,28 +333,30 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
           </div>
         )}
 
-        <div className="flex items-center gap-2 mt-2 flex-wrap">
-          <span
-            className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-            style={{ color: priority.color, backgroundColor: priority.color + '18' }}
-          >
-            {priority.icon} {priority.label}
-          </span>
-
-          {task.labels.map(label => (
-            <span key={label} className="text-[10px] text-gray-400 bg-gray-700/60 px-1.5 py-0.5 rounded">
-              {label}
+        {!collapsed && (
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <span
+              className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+              style={{ color: priority.color, backgroundColor: priority.color + '18' }}
+            >
+              {priority.icon} {priority.label}
             </span>
-          ))}
 
-          {task.dueDate && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-              isOverdue ? 'text-red-400 bg-red-400/10' : 'text-gray-400 bg-gray-700/60'
-            }`}>
-              {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            </span>
-          )}
-        </div>
+            {task.labels.map(label => (
+              <span key={label} className="text-[10px] text-gray-400 bg-gray-700/60 px-1.5 py-0.5 rounded">
+                {label}
+              </span>
+            ))}
+
+            {task.dueDate && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                isOverdue ? 'text-red-400 bg-red-400/10' : 'text-gray-400 bg-gray-700/60'
+              }`}>
+                {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {contextMenu && (

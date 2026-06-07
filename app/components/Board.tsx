@@ -168,6 +168,21 @@ export default function Board() {
     await fetchBoardData(activeBoardId);
   };
 
+  const handleCopyTask = async (taskId: string) => {
+    const task = board.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _, createdAt: _1, updatedAt: _2, order: _3, ...rest } = task;
+    const columnTasks = board.tasks.filter(t => t.columnId === task.columnId);
+    const maxOrder = columnTasks.reduce((max, t) => Math.max(max, t.order), -1);
+    const res = await fetch(`/api/tasks?boardId=${activeBoardId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...rest, order: maxOrder + 1 }),
+    });
+    if (res.ok) await fetchBoardData(activeBoardId);
+  };
+
   const handleInlineUpdate = (taskId: string, updates: Partial<Task>) => {
     const updated = {
       ...board,
@@ -312,6 +327,7 @@ export default function Board() {
                     onDragStart={(e) => handleDragStart(e, task.id)}
                     onEdit={() => { setEditingTask(task); setModalOpen(true); }}
                     onDelete={() => handleDeleteTask(task.id)}
+                    onCopy={() => handleCopyTask(task.id)}
                     onUpdate={(updates) => handleInlineUpdate(task.id, updates)}
                   />
                 ))}
