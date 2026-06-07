@@ -89,6 +89,16 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
     onUpdate({ subtasks: (task.subtasks || []).filter(s => s.id !== subtaskId) });
   };
 
+  const copySubtask = (subtaskId: string) => {
+    const subtask = (task.subtasks || []).find(s => s.id === subtaskId);
+    if (!subtask) return;
+    const copy: Subtask = { id: randomId(), title: subtask.title, completed: false };
+    const idx = (task.subtasks || []).findIndex(s => s.id === subtaskId);
+    const updated = [...(task.subtasks || [])];
+    updated.splice(idx + 1, 0, copy);
+    onUpdate({ subtasks: updated });
+  };
+
   const handleSubtaskContextMenu = (e: React.MouseEvent, subtaskId: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -259,13 +269,29 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
                     }`}>
                       {s.title}
                     </span>
-                    <button
-                      data-id={`delete-subtask-${s.id.slice(0, 8)}`}
-                      onClick={() => deleteSubtask(s.id)}
-                      className="text-gray-600 hover:text-red-400 text-[10px] opacity-0 group-hover/sub:opacity-100 cursor-pointer transition-opacity"
-                    >
-                      ×
-                    </button>
+                    <div className="flex gap-1 opacity-0 group-hover/sub:opacity-100 transition-opacity shrink-0">
+                      <button
+                        data-id={`edit-subtask-${s.id.slice(0, 8)}`}
+                        onClick={() => startEditSubtask(s.id)}
+                        className="text-gray-600 hover:text-blue-400 text-[10px] cursor-pointer"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        data-id={`copy-subtask-${s.id.slice(0, 8)}`}
+                        onClick={() => copySubtask(s.id)}
+                        className="text-gray-600 hover:text-amber-400 text-[10px] cursor-pointer"
+                      >
+                        ⧉
+                      </button>
+                      <button
+                        data-id={`delete-subtask-${s.id.slice(0, 8)}`}
+                        onClick={() => deleteSubtask(s.id)}
+                        className="text-gray-600 hover:text-red-400 text-[10px] cursor-pointer"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
