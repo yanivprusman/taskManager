@@ -148,7 +148,10 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
           if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); props.onSubmit(); }
           if (e.key === 'Escape') props.onCancel();
         }}
-        onBlur={props.onSubmit}
+        onBlur={e => {
+          const el = e.currentTarget;
+          setTimeout(() => { if (document.activeElement !== el) props.onSubmit(); }, 150);
+        }}
         onFocus={e => autoResize(e.target)}
         placeholder="Subtask title..."
         rows={1}
