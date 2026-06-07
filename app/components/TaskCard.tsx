@@ -24,8 +24,8 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
   const [editingSubtask, setEditingSubtask] = useState<{ id: string; title: string } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const subtaskMenuRef = useRef<HTMLDivElement>(null);
-  const subtaskInputRef = useRef<HTMLInputElement>(null);
-  const editSubtaskInputRef = useRef<HTMLInputElement>(null);
+  const subtaskInputRef = useRef<HTMLTextAreaElement>(null);
+  const editSubtaskInputRef = useRef<HTMLTextAreaElement>(null);
 
   const closeMenu = useCallback(() => setContextMenu(null), []);
   const closeSubtaskMenu = useCallback(() => setSubtaskContextMenu(null), []);
@@ -113,8 +113,13 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
     setEditingSubtask(null);
   };
 
+  const autoResize = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  };
+
   const renderSubtaskInput = (props: {
-    inputRef: React.RefObject<HTMLInputElement | null>;
+    inputRef: React.RefObject<HTMLTextAreaElement | null>;
     dataId: string;
     value: string;
     onChange: (val: string) => void;
@@ -123,25 +128,27 @@ export default function TaskCard({ task, isDragging, onDragStart, onEdit, onDele
     confirmDataId: string;
     confirmLabel: string;
   }) => (
-    <div className="flex gap-1">
-      <input
+    <div className="flex gap-1 items-start">
+      <textarea
         ref={props.inputRef}
         data-id={props.dataId}
         value={props.value}
-        onChange={e => props.onChange(e.target.value)}
+        onChange={e => { props.onChange(e.target.value); autoResize(e.target); }}
         onKeyDown={e => {
-          if (e.key === 'Enter') props.onSubmit();
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); props.onSubmit(); }
           if (e.key === 'Escape') props.onCancel();
         }}
         onBlur={props.onSubmit}
+        onFocus={e => autoResize(e.target)}
         placeholder="Subtask title..."
-        className="flex-1 min-w-0 bg-gray-700/50 border border-gray-600 rounded px-1.5 py-0.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-amber-500/50"
+        rows={1}
+        className="flex-1 min-w-0 bg-gray-700/50 border border-gray-600 rounded px-1.5 py-0.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-amber-500/50 resize-none overflow-hidden"
       />
       <button
         data-id={props.confirmDataId}
         onMouseDown={e => e.preventDefault()}
         onClick={props.onSubmit}
-        className="text-amber-400 hover:text-amber-300 text-xs cursor-pointer px-1"
+        className="text-amber-400 hover:text-amber-300 text-xs cursor-pointer px-1 mt-0.5"
       >
         {props.confirmLabel}
       </button>
